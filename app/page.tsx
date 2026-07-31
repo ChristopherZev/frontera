@@ -20,7 +20,11 @@ export default function Home() {
 
   useEffect(() => {
     setApiKey(sessionStorage.getItem("anthropicKey") ?? "");
-    setUnlocked(sessionStorage.getItem("unlocked") === "1");
+    // The unlock cookie is httpOnly — ask the server for the real state.
+    fetch("/api/unlock")
+      .then((res) => (res.ok ? res.json() : { unlocked: false }))
+      .then((data) => setUnlocked(Boolean(data.unlocked)))
+      .catch(() => {});
   }, []);
 
   function saveKey(v: string) {
@@ -38,7 +42,6 @@ export default function Home() {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        sessionStorage.setItem("unlocked", "1");
         setUnlocked(true);
         setPassword("");
         setUnlockMsg("Unlocked — live responses enabled.");
@@ -47,6 +50,17 @@ export default function Home() {
       }
     } catch (err) {
       setUnlockMsg(`Unlock error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function lock() {
+    setUnlockMsg("");
+    try {
+      await fetch("/api/unlock", { method: "DELETE" });
+      setUnlocked(false);
+      setUnlockMsg("Locked — back to demo mode.");
+    } catch (err) {
+      setUnlockMsg(`Lock error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -128,21 +142,32 @@ export default function Home() {
             Clearing this field removes it.
           </p>
 
-          <label htmlFor="pw">Or unlock the hosted demo with a password</label>
-          <div className="row">
-            <input
-              id="pw"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="demo password"
-              autoComplete="off"
-            />
-            <button onClick={unlock} disabled={!password.trim()}>
-              Unlock
-            </button>
-          </div>
-          {unlocked && <p className="hint">Hosted demo unlocked for this session.</p>}
+          {unlocked ? (
+            <>
+              <label>Hosted demo unlocked — live responses on the house key</label>
+              <div className="row">
+                <p className="hint">Stays unlocked on this browser for up to 7 days.</p>
+                <button onClick={lock}>Lock</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label htmlFor="pw">Or unlock the hosted demo with a password</label>
+              <div className="row">
+                <input
+                  id="pw"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="demo password"
+                  autoComplete="off"
+                />
+                <button onClick={unlock} disabled={!password.trim()}>
+                  Unlock
+                </button>
+              </div>
+            </>
+          )}
           {unlockMsg && <p className="hint">{unlockMsg}</p>}
         </div>
       </details>

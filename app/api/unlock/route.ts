@@ -1,7 +1,33 @@
 import { timingSafeEqual } from "node:crypto";
-import { UNLOCK_COOKIE, signUnlock } from "@/lib/access";
+import { UNLOCK_COOKIE, readCookie, signUnlock, verifyUnlock } from "@/lib/access";
 
 export const runtime = "nodejs";
+
+/**
+ * GET → { unlocked } — whether this request carries a valid unlock cookie.
+ * The cookie is httpOnly, so this is the client's only way to know its
+ * real unlock state (server is the source of truth, not sessionStorage).
+ */
+export async function GET(req: Request) {
+  const unlocked = verifyUnlock(readCookie(req.headers.get("cookie"), UNLOCK_COOKIE));
+  return Response.json({ unlocked });
+}
+
+/** DELETE → clears the unlock cookie, dropping this browser back to demo mode. */
+export async function DELETE() {
+  const cookie = [
+    `${UNLOCK_COOKIE}=`,
+    "Path=/",
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax",
+    "Max-Age=0",
+  ].join("; ");
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json", "Set-Cookie": cookie },
+  });
+}
 
 /**
  * POST { password } → sets a signed httpOnly unlock cookie on match.

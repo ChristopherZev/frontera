@@ -51,7 +51,7 @@ export function verifyUnlock(cookieValue: string | undefined): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function readCookie(header: string | null, name: string): string | undefined {
+export function readCookie(header: string | null, name: string): string | undefined {
   if (!header) return undefined;
   for (const part of header.split(";")) {
     const [k, ...rest] = part.trim().split("=");
