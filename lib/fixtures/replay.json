@@ -1,0 +1,18 @@
+{
+  "_comment": "Canned responses served in anonymous replay mode (zero API spend). Regenerate with `npm run fixtures:record` using a live key. `match` is a lowercased substring tested against the prompt; first match wins, else `default`.",
+  "fixtures": [
+    {
+      "id": "system-prompt",
+      "match": "system prompt",
+      "response": "A system prompt is the standing instruction set that defines the model's role, tone, and rules for a whole conversation — it's sent once and applies to every turn. The user message is the specific request; the system prompt is the frame around it. In a product, engineering usually owns the system prompt (it encodes policy and guardrails) while the user controls the messages.\n\n(This is a canned demo response. Add your own Anthropic key or unlock the live demo to get real answers.)"
+    },
+    {
+      "id": "streaming",
+      "match": "streaming",
+      "response": "Streaming sends the response token-by-token as the model generates it, instead of waiting for the whole reply. It doesn't make the model faster — total generation time is the same — but it makes the interface *feel* fast, because the user sees words appearing within a few hundred milliseconds instead of staring at a spinner. It cuts perceived latency, not actual latency.\n\n(This is a canned demo response. Add your own Anthropic key or unlock the live demo to get real answers.)"
+    }
+  ],
+  "default": {
+    "response": "You're seeing Frontera's demo mode — this is a canned response, so no live model was called. To get real answers, either paste your own Anthropic API key (it stays in your browser) or unlock the hosted demo with a password.\n\nFrontera streams responses from Claude through a single logged choke point, so every call's tokens, latency, and cost are observable."
+  }
+}
