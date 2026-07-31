@@ -4,7 +4,7 @@ A streaming Claude workspace built with Next.js. Every model call runs through a
 single logged choke point, so tokens, latency, and cost stay observable — the
 foundation for adding evals, cost tracking, and guardrails as the app grows.
 
-**Live demo:** _link goes here after first deploy_
+**Live demo:** [frontera-beta.vercel.app](https://frontera-beta.vercel.app)
 
 ## Try it
 
