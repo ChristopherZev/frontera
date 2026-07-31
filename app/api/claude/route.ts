@@ -1,5 +1,6 @@
 import { getClient, MODEL, logCall } from "@/lib/claude";
 import { resolveAccess } from "@/lib/access";
+import { STATS_SENTINEL } from "./stats";
 import replay from "@/lib/fixtures/replay.json";
 
 export const runtime = "nodejs";
@@ -14,7 +15,8 @@ const MAX_PROMPT_CHARS = 4000;
  *  - byok:     caller's own key, live model call
  *  - unlocked: signed cookie present, house key, live model call
  *  - replay:   anonymous, canned fixture, zero API spend
- * The X-Claude-Tier response header reports which one served the request.
+ * The X-Claude-Tier response header reports which one served the request, and
+ * the stream's final line carries per-call stats (see ./stats).
  */
 export async function POST(req: Request) {
   let prompt: unknown;
@@ -60,14 +62,17 @@ export async function POST(req: Request) {
         // avoids a double-close when a failed stream fires both.
         stream.on("text", (text) => controller.enqueue(encoder.encode(text)));
         const final = await stream.finalMessage();
-        logCall({
-          ts: new Date().toISOString(),
+        const stats = {
           model: MODEL,
           tier: access.tier,
           inputTokens: final.usage.input_tokens,
           outputTokens: final.usage.output_tokens,
           latencyMs: Date.now() - started,
-        });
+        };
+        logCall({ ts: new Date().toISOString(), ...stats });
+        // The same numbers the choke point logs, surfaced to the UI so the
+        // observability story is visible in the browser, not just in the log.
+        controller.enqueue(encoder.encode(`\n${STATS_SENTINEL}${JSON.stringify(stats)}`));
         controller.close();
       } catch (err) {
         // Headers already flushed, so we can't send a 401 mid-stream. For a
@@ -102,6 +107,7 @@ function replayStream(prompt: string, encoder: TextEncoder): ReadableStream {
   const hit = replay.fixtures.find((f) => p.includes(f.match));
   const text = (hit ?? replay.default).response;
   const chunks = text.match(/\S+\s*/g) ?? [text];
+  const started = Date.now();
 
   return new ReadableStream({
     async start(controller) {
@@ -109,6 +115,16 @@ function replayStream(prompt: string, encoder: TextEncoder): ReadableStream {
         controller.enqueue(encoder.encode(chunk));
         await new Promise((r) => setTimeout(r, 18));
       }
+      // Replay spends no tokens; report zeros rather than omitting the stats
+      // line, so the readout is present on the tier most visitors land on.
+      const stats = {
+        model: "replay-fixture",
+        tier: "replay",
+        inputTokens: 0,
+        outputTokens: 0,
+        latencyMs: Date.now() - started,
+      };
+      controller.enqueue(encoder.encode(`\n${STATS_SENTINEL}${JSON.stringify(stats)}`));
       controller.close();
     },
   });

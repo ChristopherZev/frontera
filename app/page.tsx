@@ -1,17 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { STATS_SENTINEL, type CallStats } from "./api/claude/stats";
+
+/** Copy for the persistent mode badge — what tier the *next* call will use. */
+const MODE_COPY: Record<string, { label: string; detail: string }> = {
+  replay: {
+    label: "Demo mode",
+    detail: "canned responses · no live model call · $0",
+  },
+  byok: {
+    label: "Your key",
+    detail: "live model · billed to your Anthropic account",
+  },
+  unlocked: {
+    label: "Unlocked",
+    detail: "live model · billed to the host's key",
+  },
+};
 
 /**
  * Home: browser → API route → Claude → streamed back.
  * Surfaces the three access tiers: anonymous replay, bring-your-own-key,
- * and password unlock.
+ * and password unlock. Each answer carries the same tokens/latency numbers
+ * the server-side choke point logs, so the observability story is visible.
  */
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [tier, setTier] = useState<string>("");
+  const [stats, setStats] = useState<CallStats | null>(null);
 
   const [apiKey, setApiKey] = useState("");
   const [unlocked, setUnlocked] = useState(false);
@@ -67,7 +85,7 @@ export default function Home() {
   async function run() {
     setBusy(true);
     setOutput("");
-    setTier("");
+    setStats(null);
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (apiKey) headers["X-User-Anthropic-Key"] = apiKey;
@@ -76,17 +94,29 @@ export default function Home() {
         headers,
         body: JSON.stringify({ prompt }),
       });
-      setTier(res.headers.get("X-Claude-Tier") ?? "");
       if (!res.ok || !res.body) {
         setOutput(`Error: ${res.status} ${await res.text()}`);
         return;
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      // Accumulate locally: the stats sentinel can straddle two chunks, so the
+      // split has to run against the whole text, not a single decoded chunk.
+      let text = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        setOutput((prev) => prev + decoder.decode(value));
+        text += decoder.decode(value, { stream: true });
+        const cut = text.indexOf(STATS_SENTINEL);
+        setOutput(cut === -1 ? text : text.slice(0, cut));
+      }
+      const cut = text.indexOf(STATS_SENTINEL);
+      if (cut !== -1) {
+        try {
+          setStats(JSON.parse(text.slice(cut + STATS_SENTINEL.length)));
+        } catch {
+          // malformed trailer — the answer itself is still shown
+        }
       }
     } catch (err) {
       setOutput(`Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -96,6 +126,7 @@ export default function Home() {
   }
 
   const mode = apiKey ? "byok" : unlocked ? "unlocked" : "replay";
+  const copy = MODE_COPY[mode];
 
   return (
     <>
@@ -105,12 +136,14 @@ export default function Home() {
         point, so tokens, latency, and cost stay observable.
       </p>
 
-      {mode === "replay" && (
-        <p className="notice">
-          Demo mode — responses are canned, no live model is called. Add your own
-          key below (it stays in your browser) or unlock the hosted demo for live answers.
-        </p>
-      )}
+      <div className={`mode-badge mode-${mode}`}>
+        <span className="mode-dot" aria-hidden="true" />
+        <strong>{copy.label}</strong>
+        <span className="mode-detail">{copy.detail}</span>
+        {mode === "replay" && (
+          <span className="mode-cta">Add a key or unlock below for live answers ↓</span>
+        )}
+      </div>
 
       <div className="panel">
         <textarea
@@ -121,8 +154,29 @@ export default function Home() {
         <button onClick={run} disabled={busy || !prompt.trim()}>
           {busy ? "Streaming…" : "Send"}
         </button>
-        {tier && <span className="tier-tag">served: {tier}</span>}
         <div className="output">{output}</div>
+        {stats && (
+          <dl className="stats" aria-label="Call stats">
+            <div>
+              <dt>served by</dt>
+              <dd>{stats.tier}</dd>
+            </div>
+            <div>
+              <dt>latency</dt>
+              <dd>{stats.latencyMs.toLocaleString()} ms</dd>
+            </div>
+            <div>
+              <dt>tokens in / out</dt>
+              <dd>
+                {stats.inputTokens} / {stats.outputTokens}
+              </dd>
+            </div>
+            <div>
+              <dt>model</dt>
+              <dd>{stats.model}</dd>
+            </div>
+          </dl>
+        )}
       </div>
 
       <details className="access">

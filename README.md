@@ -4,7 +4,40 @@ A streaming Claude workspace built with Next.js. Every model call runs through a
 single logged choke point, so tokens, latency, and cost stay observable — the
 foundation for adding evals, cost tracking, and guardrails as the app grows.
 
-**Live demo:** [frontera-beta.vercel.app](https://frontera-beta.vercel.app)
+**▶ Live demo: [frontera-beta.vercel.app](https://frontera-beta.vercel.app)** — no signup, no key
+required. Anonymous visitors get canned responses at zero API spend; the UI says
+so on every call.
+
+<!-- Demo GIF: docs/demo.gif — record a ~15s pass (ask a question in demo mode,
+     watch it stream, open Access & keys, unlock, ask again live) and drop it here:
+     ![Frontera demo](docs/demo.gif) -->
+
+## What this demonstrates
+
+| Feature | Capability it shows |
+|---------|--------------------|
+| Single `lib/claude.ts` choke point every call goes through | Observability by construction — tokens, latency, and model land in one place, so evals and cost tracking have somewhere to attach |
+| Per-answer stats readout in the UI | The numbers the server logs are the numbers the user sees; observability you can't see doesn't count |
+| Three access tiers (replay / BYOK / unlock) | Cost and abuse design on a public LLM endpoint: the default tier can't spend money, and live tiers are opt-in |
+| Signed httpOnly unlock cookie, timing-safe compare | Auth hygiene without a database; the client can't forge or read it |
+| Prompt-length cap + bounded `max_tokens` | Both sides of the spend surface are bounded, not just the output |
+| Canned fixtures labeled in-product | Honest demo UX — a visitor is never misled into thinking a replay is a live model |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U[Browser] -->|POST /api/claude| R[Route handler]
+    R --> A["lib/access.ts<br/>resolve tier"]
+    A -->|replay| F["fixtures<br/>zero spend"]
+    A -->|byok / unlocked| C["lib/claude.ts<br/>choke point"]
+    C --> M[Anthropic API]
+    C --> L["telemetry<br/>calls.jsonl"]
+    L --> D["lib/db.ts<br/>DuckDB"]
+    F --> S[Streamed answer + stats]
+    M --> S
+    S --> U
+```
 
 ## Try it
 
