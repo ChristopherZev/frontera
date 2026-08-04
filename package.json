@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test",
+    "test": "node --test --test-reporter=spec \"tests/**/*.test.ts\"",
     "db": "node scripts/db.mjs",
     "fixtures:record": "node scripts/record-fixtures.mjs",
     "invite": "node scripts/invite.mjs"

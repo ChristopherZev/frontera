@@ -87,6 +87,13 @@ deployment you're minting for):
 npm run invite -- --label jane --days 14 --base https://frontera-beta.vercel.app
 ```
 
+Run the tests (Node's built-in runner, native TypeScript — no framework, no
+build step):
+
+```bash
+npm test
+```
+
 Query the local call log:
 
 ```bash
