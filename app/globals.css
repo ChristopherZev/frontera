@@ -319,6 +319,23 @@ button:disabled {
   font-size: var(--size-body-sm);
 }
 
+/* ─── Invite note — outcome of redeeming an invite link ─── */
+.invite-note {
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--success);
+  border-radius: var(--radius-chip);
+  background: var(--surface-flat);
+  padding: var(--space-sm) var(--space-md);
+  margin: 0 0 var(--space-md);
+  color: var(--text-subtle);
+  font-size: var(--size-small);
+}
+/* A dead link is the visitor's problem to act on — flag it, don't bury it. */
+.invite-note-warn {
+  border-left-color: var(--danger);
+  background: var(--danger-tint);
+}
+
 /* ─── Mode badge — which tier the NEXT call will use, always visible ─── */
 .mode-badge {
   display: flex;

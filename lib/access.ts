@@ -51,6 +51,56 @@ export function verifyUnlock(cookieValue: string | undefined): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/**
+ * Invite links (`/?invite=<token>`) unlock the live tier without typing a
+ * password — the link itself is the credential, so it can be handed out per
+ * recipient and expires on its own schedule.
+ *
+ * Payload is `<expiresAtMs>.<label>`, HMAC'd with a domain-separation prefix
+ * so an invite token can never be replayed as a session cookie (or vice
+ * versa) even though both use the same secret. The label is opaque to the
+ * server beyond logging — it exists so a leaked link can be traced back to
+ * who it was issued to.
+ */
+const INVITE_PREFIX = "invite:v1:";
+
+function inviteMac(payload: string): string {
+  return createHmac("sha256", secret()).update(INVITE_PREFIX + payload).digest("hex");
+}
+
+export function signInvite(expiresAtMs: number, label: string): string {
+  // Dots separate the fields, so a label can't contain one.
+  const safeLabel = label.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 40) || "anon";
+  const payload = `${expiresAtMs}.${safeLabel}`;
+  return `${payload}.${inviteMac(payload)}`;
+}
+
+export interface InviteCheck {
+  ok: boolean;
+  label?: string;
+  reason?: "malformed" | "expired" | "bad-signature" | "not-configured";
+}
+
+export function verifyInvite(token: string | null): InviteCheck {
+  if (!secret()) return { ok: false, reason: "not-configured" };
+  if (!token) return { ok: false, reason: "malformed" };
+  const parts = token.split(".");
+  if (parts.length !== 3) return { ok: false, reason: "malformed" };
+  const [expiresRaw, label, mac] = parts;
+  const expiresMs = Number(expiresRaw);
+  if (!Number.isFinite(expiresMs)) return { ok: false, reason: "malformed" };
+
+  // Verify the signature BEFORE trusting any field, including the expiry.
+  const expected = inviteMac(`${expiresRaw}.${label}`);
+  const a = Buffer.from(mac, "hex");
+  const b = Buffer.from(expected, "hex");
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return { ok: false, reason: "bad-signature" };
+  }
+  if (Date.now() > expiresMs) return { ok: false, label, reason: "expired" };
+  return { ok: true, label };
+}
+
 export function readCookie(header: string | null, name: string): string | undefined {
   if (!header) return undefined;
   for (const part of header.split(";")) {

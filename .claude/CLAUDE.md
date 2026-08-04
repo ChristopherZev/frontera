@@ -10,6 +10,7 @@ Frontera is a Next.js (App Router, TypeScript) app that streams responses from C
 - **Big data files never enter a model context.** Query files beyond ~50 rows through DuckDB — `lib/db.ts` in code, `npm run db -- "<SQL>"` ad hoc — and put only the aggregate or slice into a prompt.
 - **Secrets only in `.env.local`** (gitignored). Never commit keys. `.env.example` documents required vars.
 - **Access tiers:** `lib/access.ts` resolves each request to `byok` (caller's key), `unlocked` (signed cookie, house key), or `replay` (anonymous, canned fixtures). Never log a caller's key.
+- **Signed tokens:** every HMAC payload carries a domain-separation prefix (`invite:v1:` for invite links) so a token minted for one purpose can never be replayed as another. Verify the signature *before* trusting any field in the payload, including expiry. Log a redemption's label, never the token.
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`) describing the change. Keep the `Co-Authored-By` trailer.
 - Small commits; one concern each.
 

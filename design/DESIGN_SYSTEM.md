@@ -159,6 +159,9 @@ Streamed text region: `--hairline-soft` top rule, `--text-body`, pre-wrap.
 ### Mode badge — `.mode-badge`
 Always-visible strip naming the access tier the *next* call will use: `--accent-tint` fill, 1px `--glass-border`, `--radius-chip`, `--size-small` in `--text-subtle` with the tier label in `--text-strong`. Leading 8px dot — `--success` on the live tiers (`.mode-byok`, `.mode-unlocked`), `--text-muted` on inert replay. Detail clause in `--font-mono` at `--size-caption`; the replay variant adds a full-width `.mode-cta` prompt. Honest labeling is the point: a visitor must never mistake a canned answer for a live one.
 
+### Invite note — `.invite-note`
+Outcome banner shown above the mode badge after an invite link is redeemed: `--surface-flat` fill, 1px `--glass-border`, 3px `--success` left rule, `--radius-chip`, `--size-small` in `--text-subtle`. The `.invite-note-warn` variant (expired/invalid link) swaps the rule to `--danger` over `--danger-tint`. Carries `role="status"`. A visitor arriving on a dead link must be told why they're in demo mode, never silently dropped there.
+
 ### Call stats — `.stats`
 Definition list of the choke point's own per-call numbers (tier, latency, tokens in/out, model) under an answer: `--hairline-soft` top rule, `--size-caption` `--text-muted` labels over `--font-mono` `--size-small` `--text-body` values, wrapping flex row. Makes the observability claim in the intro visible rather than asserted.
 

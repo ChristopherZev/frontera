@@ -20,6 +20,7 @@ so on every call.
 | Per-answer stats readout in the UI | The numbers the server logs are the numbers the user sees; observability you can't see doesn't count |
 | Three access tiers (replay / BYOK / unlock) | Cost and abuse design on a public LLM endpoint: the default tier can't spend money, and live tiers are opt-in |
 | Signed httpOnly unlock cookie, timing-safe compare | Auth hygiene without a database; the client can't forge or read it |
+| Self-expiring, per-recipient invite links | Capability URLs done carefully: signature verified before any field is trusted, domain-separated from session cookies, revocable in bulk by secret rotation |
 | Prompt-length cap + bounded `max_tokens` | Both sides of the spend surface are bounded, not just the output |
 | Canned fixtures labeled in-product | Honest demo UX — a visitor is never misled into thinking a replay is a live model |
 
@@ -51,6 +52,12 @@ The demo endpoint has three access tiers, resolved per request:
   logged server-side.
 - **Password unlock:** a shared password enables live answers on the host's key
   (for a guided walkthrough). It sets a signed, httpOnly cookie.
+- **Invite link:** a signed, per-recipient, self-expiring URL that unlocks the
+  live tier on click — no password to type. Mint one with
+  `npm run invite -- --label acme --days 14`. The token carries its own expiry
+  and label, is HMAC'd with a domain-separation prefix (so it can't be swapped
+  with a session cookie), and redemptions are logged by label. Rotating
+  `UNLOCK_COOKIE_SECRET` invalidates every outstanding link at once.
 
 ## Stack
 
@@ -71,6 +78,13 @@ Record fresh demo-mode fixtures (needs a live key):
 
 ```bash
 npm run fixtures:record
+```
+
+Mint an invite link (signs with `UNLOCK_COOKIE_SECRET`, so it must match the
+deployment you're minting for):
+
+```bash
+npm run invite -- --label jane --days 14 --base https://frontera-beta.vercel.app
 ```
 
 Query the local call log:

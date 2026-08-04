@@ -19,6 +19,16 @@ const MODE_COPY: Record<string, { label: string; detail: string }> = {
   },
 };
 
+/** What to say after /invite redirects back with an outcome. */
+const INVITE_COPY: Record<string, string> = {
+  ok: "Invite accepted — live responses enabled for the next 7 days.",
+  expired: "That invite link has expired. Ask for a fresh one, or use the demo password below.",
+  "bad-signature": "That invite link isn't valid. Ask for a fresh one, or use the demo password below.",
+  malformed: "That invite link is incomplete — it may have been clipped in transit. Ask for a fresh one.",
+  "not-configured": "Invites aren't configured on this deployment.",
+  invalid: "That invite link couldn't be used. Ask for a fresh one, or use the demo password below.",
+};
+
 /**
  * Home: browser → API route → Claude → streamed back.
  * Surfaces the three access tiers: anonymous replay, bring-your-own-key,
@@ -35,6 +45,7 @@ export default function Home() {
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState("");
   const [unlockMsg, setUnlockMsg] = useState("");
+  const [invite, setInvite] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     setApiKey(sessionStorage.getItem("anthropicKey") ?? "");
@@ -43,6 +54,15 @@ export default function Home() {
       .then((res) => (res.ok ? res.json() : { unlocked: false }))
       .then((data) => setUnlocked(Boolean(data.unlocked)))
       .catch(() => {});
+
+    // /invite redirects here with the outcome. Say what happened rather than
+    // dropping a visitor with a stale link silently into demo mode.
+    const outcome = new URLSearchParams(window.location.search).get("invite");
+    if (outcome) {
+      setInvite({ ok: outcome === "ok", text: INVITE_COPY[outcome] ?? INVITE_COPY.invalid });
+      // Strip the param so a refresh doesn't replay the message.
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   function saveKey(v: string) {
@@ -135,6 +155,12 @@ export default function Home() {
         A streaming Claude workspace. Every call runs through one logged choke
         point, so tokens, latency, and cost stay observable.
       </p>
+
+      {invite && (
+        <p className={`invite-note${invite.ok ? "" : " invite-note-warn"}`} role="status">
+          {invite.text}
+        </p>
+      )}
 
       <div className={`mode-badge mode-${mode}`}>
         <span className="mode-dot" aria-hidden="true" />
