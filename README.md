@@ -8,9 +8,9 @@ foundation for adding evals, cost tracking, and guardrails as the app grows.
 required. Anonymous visitors get canned responses at zero API spend; the UI says
 so on every call.
 
-<!-- Demo GIF: docs/demo.gif — record a ~15s pass (ask a question in demo mode,
-     watch it stream, open Access & keys, unlock, ask again live) and drop it here:
-     ![Frontera demo](docs/demo.gif) -->
+> **Demo recording pending** — see [`docs/README.md`](docs/README.md) for what to
+> capture. Once `docs/demo.gif` exists, replace this quote block with:
+> `![Frontera demo](docs/demo.gif)`
 
 ## What this demonstrates
 
