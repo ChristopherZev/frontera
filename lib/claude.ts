@@ -29,6 +29,8 @@ export interface CallLog {
   inputTokens: number;
   outputTokens: number;
   latencyMs: number;
+  /** Set only on a failed call, e.g. "upstream_401". Absent on success. */
+  error?: string;
 }
 
 const TELEMETRY_FILE = "data/telemetry/calls.jsonl";

@@ -1,6 +1,7 @@
 import { getClient, MODEL, logCall } from "@/lib/claude";
 import { resolveAccess } from "@/lib/access";
 import { STATS_SENTINEL } from "./stats";
+import { upstreamMessage } from "./errors";
 import replay from "@/lib/fixtures/replay.json";
 
 export const runtime = "nodejs";
@@ -75,20 +76,22 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(`\n${STATS_SENTINEL}${JSON.stringify(stats)}`));
         controller.close();
       } catch (err) {
-        // Headers already flushed, so we can't send a 401 mid-stream. For a
-        // bad caller key (BYOK), surface it as readable text rather than an
-        // opaque stream abort; otherwise abort the stream.
+        // Headers are already flushed, so there's no status code left to send:
+        // aborting the stream here renders as a blank or broken page. Always
+        // finish with readable text instead — an upstream failure the visitor
+        // can't act on is exactly when they most need to be told what happened.
         const status = (err as { status?: number })?.status;
-        if (access.tier === "byok" && (status === 401 || status === 403)) {
-          controller.enqueue(
-            encoder.encode(
-              "Your Anthropic API key was rejected. Check the key in the Access & keys panel and try again.",
-            ),
-          );
-          controller.close();
-        } else {
-          controller.error(err);
-        }
+        logCall({
+          ts: new Date().toISOString(),
+          model: MODEL,
+          tier: access.tier,
+          inputTokens: 0,
+          outputTokens: 0,
+          latencyMs: Date.now() - started,
+          error: `upstream_${status ?? "unknown"}`,
+        });
+        controller.enqueue(encoder.encode(`\n\n${upstreamMessage(status, access.tier)}`));
+        controller.close();
       }
     },
   });
